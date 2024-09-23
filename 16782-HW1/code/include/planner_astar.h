@@ -60,16 +60,9 @@ public:
         this->f = g + h;
     }
 
-    void update() {
-
-        // f = g + epsilon * h;
-        f = g + h;
-    }
-
-    void updateSingle(int target_x, int target_y) {
+    void update(int target_x, int target_y) {
 
         h = heuristic(target_x, target_y);
-        // f = g + epsilon * h;
         f = g + h;
     }
 
@@ -79,17 +72,8 @@ public:
         return sqrt((x - target_x) * (x - target_x) + (y - target_y) * (y - target_y));
     }
 
-    void updateMulti(int target_steps, int* target_traj) {
-
-        for (int i = 0; i < target_steps; i ++) {
-            h = min(h, heuristic(target_traj[i], target_traj[i+target_steps]));
-        }
-        // f = g + epsilon * h;
-        f = g + h;
-    }
-
     string hash() {
-        return to_string(x) + "ganninian" + to_string(y);
+        return to_string(x) + " " + to_string(y);
     }
 
     static void printNode(Node n) {

@@ -57,23 +57,45 @@ public:
         // t = 0;
         this->parent = parent;
         // this->f = g + epsilon * h;
-        this->f = g + h;
+        update();
     }
 
-    void update(int target_x, int target_y) {
+    void update() {
 
-        h = heuristic(target_x, target_y);
         f = g + h;
     }
-
+    
     double heuristic(int target_x, int target_y) {
+
         // use Euclidean dist as heuristic val
-        // turn time also into dist heuristic?
         return sqrt((x - target_x) * (x - target_x) + (y - target_y) * (y - target_y));
+        
+    }
+
+    void updateMulti(int target_steps, int* target_traj) {
+
+        // find the min heuristic value among all target states
+
+        // double tmp = INFINITE_COST;
+
+        // for (int i = 0; i < target_steps; i ++) {
+        //     tmp = min(tmp, heuristic(target_traj[i], target_traj[i+target_steps]));
+        // }
+
+        double tmp = 0.0;
+        int ratio = 10;
+        for (int i = 0; i < target_steps; i += target_steps/ratio) {
+            tmp += heuristic(target_traj[i], target_traj[i+target_steps]);
+        }
+
+        // double tmp = heuristic(target_traj[target_steps/2], target_traj[target_steps/2 + target_steps]);
+
+        h = tmp;
+        update();
     }
 
     string hash() {
-        return to_string(x) + " " + to_string(y);
+        return to_string(x) + ")(" + to_string(y);
     }
 
     static void printNode(Node n) {

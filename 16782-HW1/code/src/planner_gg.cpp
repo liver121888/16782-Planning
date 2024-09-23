@@ -21,7 +21,15 @@
 int dX[NUMOFDIRS] = {-1, -1, -1,  0,  0,  1, 1, 1};
 int dY[NUMOFDIRS] = {-1,  0,  1, -1,  1, -1, 0, 1};
 
-map<double, string> open_pq;
+// map<int, string> open_pq;
+
+// Define a custom comparator
+struct Compare {
+    bool operator()(const std::pair<double, std::string>& a, const std::pair<double, std::string>& b) {
+        return a.first > b.first; // For min-heap, use '>' instead of '<'
+    }
+};
+priority_queue<std::pair<double, std::string>, std::vector<std::pair<double, std::string>>, Compare> open_pq;
 
 unordered_set<string> closed_set;
 // start_set is storing all the target states
@@ -58,64 +66,60 @@ void planner(
 
         Node* start_state = new Node(robotposeX, robotposeY, 0, 0, nullptr);
         start_state->updateMulti(target_steps, target_traj);
-        cout << "start state (goal): " << endl;
+        // cout << "start state (goal): " << endl;
         // Node::printNode(*start_state);
-        open_pq[start_state->f] = start_state->hash();
+        open_pq.push(make_pair(start_state->f, start_state->hash()));
         grid[start_state->hash()] = start_state;
         // cout << start_state->hash() << endl;
-
 
         // Backward A* search
         // Put all the interested states into start_set
         // Assumption: target_traj never cross start state
-        for (int i = 0; i < target_steps; i ++) {
+        // vector<int>: in case target cross same position multiple times
+        for (int i = 0; i < target_steps; i++) {
             Node* goal_state = new Node(target_traj[i], target_traj[i+target_steps], INFINITE_COST, 0, nullptr);
             // Node::printNode(*goal_state);
             start_set[goal_state->hash()] = i;
-            delete goal_state;
+            // delete goal_state;
+            // cout << i << ", start_hash: " << goal_state->hash() << endl;
+
         }
 
-        // for (auto it = grid.begin(); it != grid.end(); ++it) {
-        //     cout << it->first << "/" << it->second->x << " " << it->second->y << endl;
-        // }
-
-        // cout << "start_set.size(): " << start_set.size() << " target_steps: " << target_steps << endl;
+        cout << "===================" << endl;
+        cout << "start_set.size(): " << start_set.size() << ", open_pq.size(): " << open_pq.size() << endl;
 
         while (start_set.size() > 0 && open_pq.size() > 0) {
 
-            // if (open_pq.begin()->second == start_state->hash())
-            //     cout << "ganinian" << endl;
+            // for (auto it = open_pq.begin(); it != open_pq.end(); ++it) {
+            //     cout << it->first << " " << it->second << endl;
+            // }
 
-            Node* topPriorityNode = grid.at(open_pq.begin()->second);
+            auto aPair = open_pq.top();
+            open_pq.pop();
+            Node* topPriorityNode = grid.at(aPair.second);
             // Node::printNode(*topPriorityNode);
 
-            open_pq.erase(open_pq.begin());
+            // open_pq.erase(open_pq.begin());
             // cout << "topPriorityNode: " << endl;
             // Node::printNode(*topPriorityNode);
             closed_set.insert(topPriorityNode->hash());
 
+            cout << "check_hash: " << topPriorityNode->hash() << endl;
+
             if (start_set.find(topPriorityNode->hash()) != start_set.end()) {
-
-                cout << start_set[topPriorityNode->hash()] << " " << topPriorityNode->g << endl;
-
+                // cout << start_set[topPriorityNode->hash()] << " " << topPriorityNode->g << endl;
+                // vector<int> times = start_set[topPriorityNode->hash()];
+                // for (auto time : times) {
                 if (start_set[topPriorityNode->hash()] >= topPriorityNode->g) {
-                    // reachable
-                    // cout << "goal reachable" << endl;
-                    // cout << candidate_set.size() << endl;
+                    cout << "goal reachable" << endl;
                     candidate_set[topPriorityNode->g] = topPriorityNode->hash();
                 } else {
-                    // cout << "goal unreachable" << endl;
+                    cout << "goal unreachable" << endl;
                 }
+                // }
                 start_set.erase(topPriorityNode->hash());
-                // cout << "start_set.size(): " << start_set.size() << endl;
-                
+                cout << "start_set.size(): " << start_set.size() << endl;
             }
-
-            // if (topPriorityNode->hash() == start_state->hash()) {
-            //     goal_state->parent = topPriorityNode->parent;
-            //     foundPath = true;
-            //     break;
-            // }
 
             for(int dir = 0; dir < NUMOFDIRS; dir++) {
 
@@ -133,53 +137,90 @@ void planner(
                         // initialize g val with INFINITE_COST                      
 
                         Node* new_state = new Node(newx, newy, INFINITE_COST, 0, topPriorityNode);
+                        new_state->updateMulti(target_steps, target_traj);
 
-                        // if (new_state->hash() == start_state->hash())
-                        //     start_state->parent = new_state->parent;
 
-                        // update heuristic val
-                        // new_state->updateMulti(target_steps, target_traj);
-                        // cout << "new state: " << endl;
-                        // Node::printNode(*new_state);
+                        bool inGrid = false;
+
+                        if (grid.find(new_state->hash()) != grid.end()) {
+                            // cout << "found in grid" << endl;
+                            inGrid = true;
+                            new_state = grid.at(new_state->hash());
+                        }
 
                         // if not closed
                         if (closed_set.find(new_state->hash()) == closed_set.end()) {
                             // cout << "not closed" << endl;
-                            if (new_state->g > topPriorityNode->g + 1)
+
+                            if (new_state->g > topPriorityNode->g + 1) {
                                 new_state->g = topPriorityNode->g + 1;
-                                cout << "ganinian: " << new_state->g << endl;
-                                new_state->updateMulti(target_steps, target_traj);
+                                cout << "gg: " << new_state->g << endl;
+                                new_state->update();
 
                                 bool foundNode = false;
-                                for (auto it = open_pq.begin(); it != open_pq.end(); ++it) {
-                                    if (new_state->hash() == it->second) {
-                                        foundNode = true;
+                                // for (auto it = open_pq.begin(); it != open_pq.end(); ++it) {
 
-                                        open_pq.erase(it);
-                                        // update the priority queue
-                                        cout << "update the priority queue" << endl;
-                                        open_pq[new_state->f] = new_state->hash();
+                                //     if (new_state->hash() == it->second) {
+                                //         foundNode = true;
+                                //         // cout << "found in open" << endl;
 
-                                        grid[new_state->hash()] = new_state;
-                                        break;
+                                //         open_pq.erase(it);
+                                //         // update the priority queue
+                                //         // cout << "update the priority queue" << endl;
+                                //         open_pq[new_state->g] = new_state->hash();
+
+                                //         grid[new_state->hash()] = new_state;
+                                //         break;
+                                //     }
+                                // }
+
+                                std::vector<std::pair<double, std::string>> temp;
+
+                                // Remove elements from pq and modify the specific one
+                                while (!open_pq.empty()) {
+                                    auto element = open_pq.top();
+                                    open_pq.pop();
+
+                                    if (element.second == new_state->hash()) {
+                                        // Update the double value
+                                        element.first = new_state->f;
                                     }
+
+                                    // Store in a temporary vector
+                                    temp.push_back(element);
                                 }
+
+                                // Push everything back into the priority queue
+                                for (const auto& element : temp) {
+                                    open_pq.push(element);
+                                }
+
                                 if (!foundNode) {
                                     // cout << "not found in open either, push to open" << endl;
 
-                                    // insert into open
-                                    open_pq[new_state->f] = new_state->hash();
-                                    grid[new_state->hash()] = new_state;
+                                    // cout << "f: "<< new_state->f << endl;
 
-                                }                       
+                                    // insert into open
+                                    open_pq.push(make_pair(new_state->f, new_state->hash()));
+                                    grid[new_state->hash()] = new_state;
+                                }
+
+                            } else {
+                                // cout << "not better" << endl;
+                                
+                                // open_pq[new_state->f] = new_state->hash();
+
+                            }  
 
                         } else {
                             // cout << "closed" << endl;
                             delete new_state;
                         }
                     } else {
-                        // cout << "obstacle or out of boundary" << endl;
+                        // cout << "obstacle" << endl;
                     }
+                } else {
+                    // cout << "out of boundary" << endl;
                 }
             }
             
@@ -211,7 +252,7 @@ void planner(
         while (curr != nullptr) {
             path.push_back(curr);
             curr = curr->parent;
-            // cout << curr->x << " " << curr->y << endl;
+            cout << curr->x << " " << curr->y << endl;
         }
 
         pathSize = path.size();
