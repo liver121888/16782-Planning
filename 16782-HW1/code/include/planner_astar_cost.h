@@ -69,7 +69,7 @@ public:
 
     double heuristic(int target_x, int target_y) {
         // use Euclidean dist as heuristic val
-        // turn time also into dist heuristic?
+        // turn time also into dist heuristic?        
         return sqrt((x - target_x) * (x - target_x) + (y - target_y) * (y - target_y));
     }
 

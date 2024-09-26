@@ -71,11 +71,11 @@ if __name__ == "__main__":
         t = robot_trajectory[frame+1]['t']
         line2.set_data([p['x'] for p in target_trajectory[:t]], [p['y'] for p in target_trajectory[:t]])
         
-        plt.pause((robot_trajectory[frame+1]['t']-robot_trajectory[frame]['t'])/SPEEDUP)
-        
+        # plt.pause((robot_trajectory[frame+1]['t']-robot_trajectory[frame]['t'])/SPEEDUP)
+        plt.pause(0.0001)
         return line1, line2
     
-    ani = FuncAnimation(fig, update, frames=len(robot_trajectory)-1, init_func=init, blit=False, interval=1)
+    ani = FuncAnimation(fig, update, frames=len(robot_trajectory)-1, init_func=init, blit=False, interval=1, repeat=False)
 
     plt.legend()
     plt.show()

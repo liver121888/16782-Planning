@@ -92,8 +92,8 @@ void planner(
             // Node::printNode(*topPriorityNode);
 
             open_pq.erase(open_pq.begin());
-            // cout << "topPriorityNode: " << endl;
-            // Node::printNode(*topPriorityNode);
+            cout << "topPriorityNode: " << endl;
+            Node::printNode(*topPriorityNode);
             closed_set.insert(topPriorityNode->hash());
 
             // cout << "check_hash: " << topPriorityNode->hash() << endl;
@@ -110,7 +110,7 @@ void planner(
                 
                 for (int time : times) {
 
-                    cout << "target t: " << time << ", node t: " << topPriorityNode->t << ", node hash: " << topPriorityNode->hash() << endl;
+                    cout << "target t: " << time << ", node t: " << topPriorityNode->t << ", node hash: " << topPriorityNode->hash() << ", node h: " << topPriorityNode->h << endl;
 
                     if (time > topPriorityNode->t) {
 
