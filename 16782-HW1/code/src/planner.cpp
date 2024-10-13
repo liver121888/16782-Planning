@@ -86,7 +86,8 @@ void planner(
         open_pq.push(start_state);
         grid[start_state->hash] = make_pair(start_state, start_state->version);
 
-        for (int i = 2*target_steps/3; i < target_steps; i++) {
+        // ignore some starting states to save planning time
+        for (int i = 6*target_steps/13; i < target_steps; i++) {
             // dummy goal state
             // Node* goal_state = new Node(target_traj[i], target_traj[i+target_steps], 0, INFINITE_COST, 0, "", "");
             // Node::printNode(*goal_state);
