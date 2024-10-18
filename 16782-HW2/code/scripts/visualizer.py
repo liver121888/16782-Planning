@@ -29,7 +29,7 @@ def readMap(mapfile):
 ###############################################################
 ################### Main Functions Below ######################
 
-def createSingleFrame(i, mapData, allPoses, includePrevious):
+def createSingleFrame(idx, mapData, allPoses, includePrevious):
     """ Input: frameIndex (int)
         mapData (2D numpy)
         allPoses (list of numpy or 2D numpy)
@@ -40,7 +40,7 @@ def createSingleFrame(i, mapData, allPoses, includePrevious):
     """
     if not includePrevious:
         plt.clf()
-    curPose = allPoses[i]
+    curPose = allPoses[idx]
     artists = []  # Need to save plots into artists for animating
 
     ## Show obstacles, need to transpose as C++ map is transposed as well
@@ -50,6 +50,8 @@ def createSingleFrame(i, mapData, allPoses, includePrevious):
     xBase = mapData.shape[0]//2
     yBase = 0
     linkLength = 10
+
+    print("Frame: ", idx)
 
     xs, ys = [xBase], [yBase]
     for i in range(0, len(curPose)):

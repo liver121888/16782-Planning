@@ -6,6 +6,7 @@
 #include <math.h>
 #include <random>
 #include <vector>
+#include <stack>
 #include <array>
 #include <algorithm>
 
@@ -45,7 +46,7 @@
 
 #define PI 3.141592654
 
-//the length of each link in the arm
+// the length of each link in the arm
 #define LINKLENGTH_CELLS 10
 
 #ifndef MAPS_DIR
@@ -56,8 +57,9 @@
 #endif
 
 
-// Some potentially helpful imports
+// some potentially helpful imports
 using std::vector;
+using std::stack;
 using std::array;
 using std::string;
 using std::runtime_error;
@@ -89,7 +91,7 @@ tuple<double*, int, int> loadMap(string filepath) {
 		throw runtime_error("Invalid loadMap parsing map metadata");
 	}
 	
-	////// Go through file and add to m_occupancy
+	////// go through file and add to m_occupancy
 	double* map = new double[height*width];
 
 	double cx, cy, cz;
@@ -112,7 +114,7 @@ tuple<double*, int, int> loadMap(string filepath) {
 	return make_tuple(map, width, height);
 }
 
-// Splits string based on deliminator
+// splits string based on deliminator
 vector<string> split(const string& str, const string& delim) {   
 		// https://stackoverflow.com/questions/14265581/parse-split-a-string-in-c-using-string-delimiter-standard-c/64886763#64886763
 		const std::regex ws_re(delim);
@@ -132,11 +134,24 @@ double* doubleArrayFromString(string str) {
 bool equalDoubleArrays(double* v1, double *v2, int size) {
     for (int i = 0; i < size; ++i) {
         if (abs(v1[i]-v2[i]) > 1e-3) {
-            cout << endl;
+            // cout << endl;
             return false;
         }
     }
     return true;
+}
+
+bool roughlyEqualDoubleArrays(double* v1, double *v2, int size) {
+	double thresh = 1e-1;
+	double curSum = 0;
+    for (int i = 0; i < size; ++i) {
+		curSum += (v1[i]-v2[i]) * (v1[i]-v2[i]);
+	}
+	curSum = sqrt(curSum);
+	if (curSum < thresh) {
+		return true;
+	}
+	return false;
 }
 
 typedef struct {
@@ -151,10 +166,9 @@ typedef struct {
 	int Flipped;
 } bresenham_param_t;
 
-
 void ContXY2Cell(double x, double y, short unsigned int* pX, short unsigned int *pY, int x_size, int y_size) {
 	double cellsize = 1.0;
-	//take the nearest cell
+	// take the nearest cell
 	*pX = (int)(x/(double)(cellsize));
 	if( x < 0) *pX = 0;
 	if( *pX >= x_size) *pX = x_size-1;
@@ -163,7 +177,6 @@ void ContXY2Cell(double x, double y, short unsigned int* pX, short unsigned int 
 	if( y < 0) *pY = 0;
 	if( *pY >= y_size) *pY = y_size-1;
 }
-
 
 void get_bresenham_parameters(int p1x, int p1y, int p2x, int p2y, bresenham_param_t *params) {
 	params->UsingYIndex = 0;
@@ -240,17 +253,15 @@ int get_next_point(bresenham_param_t *params) {
 	return 1;
 }
 
-
-
 int IsValidLineSegment(double x0, double y0, double x1, double y1, double*	map,
 			 int x_size, int y_size) {
 	bresenham_param_t params;
 	int nX, nY; 
 	short unsigned int nX0, nY0, nX1, nY1;
 
-	//printf("checking link <%f %f> to <%f %f>\n", x0,y0,x1,y1);
+	// printf("checking link <%f %f> to <%f %f>\n", x0,y0,x1,y1);
 		
-	//make sure the line segment is inside the environment
+	// make sure the line segment is inside the environment
 	if(x0 < 0 || x0 >= x_size ||
 		x1 < 0 || x1 >= x_size ||
 		y0 < 0 || y0 >= y_size ||
@@ -260,9 +271,9 @@ int IsValidLineSegment(double x0, double y0, double x1, double y1, double*	map,
 	ContXY2Cell(x0, y0, &nX0, &nY0, x_size, y_size);
 	ContXY2Cell(x1, y1, &nX1, &nY1, x_size, y_size);
 
-	//printf("checking link <%d %d> to <%d %d>\n", nX0,nY0,nX1,nY1);
+	// printf("checking link <%d %d> to <%d %d>\n", nX0,nY0,nX1,nY1);
 
-	//iterate through the points on the segment
+	// iterate through the points on the segment
 	get_bresenham_parameters(nX0, nY0, nX1, nY1, &params);
 	do {
 		get_current_point(&params, &nX, &nY);
@@ -278,17 +289,18 @@ int IsValidArmConfiguration(double* angles, int numofDOFs, double*	map,
     double x0,y0,x1,y1;
     int i;
 		
-	 //iterate through all the links starting with the base
+	// iterate through all the links starting with the base
 	x1 = ((double)x_size)/2.0;
 	y1 = 0;
 	for(i = 0; i < numofDOFs; i++){
-		//compute the corresponding line segment
+		// compute the corresponding line segment
 		x0 = x1;
 		y0 = y1;
 		x1 = x0 + LINKLENGTH_CELLS*cos(2*PI-angles[i]);
 		y1 = y0 - LINKLENGTH_CELLS*sin(2*PI-angles[i]);
 
-		//check the validity of the corresponding line segment
+		// check the validity of the corresponding line segment
+		// line segment means a link
 		if(!IsValidLineSegment(x0,y0,x1,y1,map,x_size,y_size))
 			return 0;
 	}    
@@ -345,6 +357,21 @@ void planner(
     return;
 }
 
+struct vertex
+{
+	/* data */
+	vector<double> angles;
+	int numofDOFs;
+	vertex* parent;
+
+	// Constructor to initialize the vertex
+    vertex(vector<double> angles, int numofDOFs, vertex* parent = nullptr)
+        : angles(angles), numofDOFs(numofDOFs), parent(parent)
+    {
+
+    }
+};
+
 //*******************************************************************************************************************//
 //                                                                                                                   //
 //                                              RRT IMPLEMENTATION                                                   //
@@ -362,7 +389,226 @@ static void plannerRRT(
     int *planlength)
 {
     /* TODO: Replace with your implementation */
-    planner(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, numofDOFs, plan, planlength);
+    // planner(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, numofDOFs, plan, planlength);
+
+	cout << "In plannerRRT function" << endl;
+
+	// set seed to 1
+	srand(1);
+
+	// no plan by default
+	*plan = NULL;
+	*planlength = 0;
+
+	// extend parameter
+	double epsilon = 0.1;
+	// sample size
+	// INT32_MAX = 2147483647
+	int K = 20000000;
+
+	// initialize the tree
+	vector<vertex*> tree;
+	int treeSize = 0;
+
+    auto random_config = [numofDOFs, armgoal_anglesV_rad]() -> vector<double> {
+		
+		// cout << "In random_config function" << endl;
+
+		// goal bias
+		if (double(rand())/double(RAND_MAX) > 0.95) {
+			return vector<double>(armgoal_anglesV_rad, armgoal_anglesV_rad + numofDOFs);
+		}
+
+		// use simple random number generator instead of std::mt19937
+		vector<double> result;
+		for (size_t i = 0; i < numofDOFs; i++)
+		{
+			double randomValue = 2*PI*double(rand())/double(RAND_MAX);
+			result.push_back(randomValue);
+			// cout << randomValue << endl;
+		}
+		return result;
+    };
+
+	auto nearest_neighbor = [&tree, &treeSize, numofDOFs](vector<double> angles) -> vertex* {
+		
+		// cout << "In nearest_neighbor function" << endl;
+
+		// find the nearest neighbor
+		vertex* nearest_neighbor = nullptr;
+		double nearest_distance = 100000;
+
+		// cout << "treeSize: " << treeSize << endl;
+
+		for (size_t i = 0; i < treeSize; i++)
+		{
+			double distance = 0;
+			for (size_t j = 0; j < numofDOFs; j++)
+			{
+				// cout << "tree[i]->angles[j]: " << tree[i]->angles[j] << " ";
+				distance += (angles[j] - tree[i]->angles[j]) * (angles[j] - tree[i]->angles[j]);
+			}
+			distance = sqrt(distance);
+			// cout << "distance: " << distance << endl;
+			if (distance < nearest_distance)
+			{
+				nearest_distance = distance;
+				nearest_neighbor = tree[i];
+			}
+		}
+		return nearest_neighbor;
+	};
+
+	auto extend = [&tree, &treeSize, epsilon, armgoal_anglesV_rad, nearest_neighbor, numofDOFs, map, x_size, y_size](vector<double> angles) -> int {
+
+		// cout << "In extend function" << endl;
+
+		vertex* q_near = nearest_neighbor(angles);
+
+		cout << "q_near: ";
+		for (size_t i = 0; i < numofDOFs; i++)
+		{
+			cout << q_near->angles[i] << " ";
+		}
+		cout << "/ q_rand: ";
+		for (size_t i = 0; i < numofDOFs; i++)
+		{
+			cout << angles[i] << " ";
+		}
+		cout << endl;
+
+		// cout << q_near << endl;
+
+		// calculate the new configuration
+		vector<double> direction;
+		double squared_sum = 0;
+		for (size_t i = 0; i < numofDOFs; i++)
+		{
+			double dist = angles[i] - q_near->angles[i];
+			direction.push_back(dist);
+			squared_sum += dist * dist;
+		}
+		// normalize and extend epsilon the direction
+		squared_sum = sqrt(squared_sum);
+		for (size_t i = 0; i < numofDOFs; i++)
+		{
+			direction[i] = epsilon * direction[i] / squared_sum;
+			// cout << direction[i] << " ";
+		}
+		int maxExtend = floor(squared_sum/epsilon);
+		cout << maxExtend << endl;
+
+		bool shouldPrint = false;
+		if (abs(angles[0] - 0.392) < 1e-3)
+		{
+			cout << "maxExtend: " << maxExtend << endl;
+			shouldPrint = true;
+		}
+
+
+		bool isValid = true;
+		while (isValid)
+		{
+			vector<double> new_angles;
+			// cout << "new_angles: ";
+			for (size_t i = 0; i < numofDOFs; i++) {
+				new_angles.push_back(q_near->angles[i] + direction[i]);
+				// cout << new_angles[i] << " ";
+			}
+			// cout << endl;
+			
+			if (shouldPrint)
+			{
+				cout << "new_angles: ";
+				for (size_t i = 0; i < numofDOFs; i++)
+				{
+					cout << new_angles[i] << " ";
+				}
+				cout << endl;
+			}
+
+			// check if the new configuration is valid
+			isValid = IsValidArmConfiguration(new_angles.data(), numofDOFs, map, x_size, y_size);
+			// cout << "isValid: " << isValid << endl;
+			maxExtend--;
+			if (isValid)
+			{
+				tree.push_back(new vertex(new_angles, numofDOFs, q_near));
+				treeSize++;
+				// cout << treeSize << endl;
+				// update q_near
+				q_near = tree[treeSize - 1];
+				if (roughlyEqualDoubleArrays(new_angles.data(), armgoal_anglesV_rad, numofDOFs))
+				{
+					// Reach q_goal
+					// cout << isValid << endl;
+					cout << "Reach q_goal" << endl;
+					return 1;
+				}
+				if (roughlyEqualDoubleArrays(new_angles.data(), angles.data(), numofDOFs))
+				{
+					// Reach q_rand
+					// cout << isValid << endl;
+					cout << "Reach q_rand" << endl;
+					return 0;
+				}
+			}
+		}
+		return 0;
+	};
+
+	vertex* q_init = new vertex(vector<double>(armstart_anglesV_rad, armstart_anglesV_rad + numofDOFs), numofDOFs, nullptr);
+	tree.push_back(q_init);
+	treeSize++;
+
+	// int iter = 0;
+	bool goalReached = false;
+	while (treeSize < K) 
+	{
+		// iter++;
+		// cout << "Iteration: " << iter << ", treeSize: " << treeSize << endl;
+		vector<double> rand_angles = random_config();
+		if (extend(rand_angles) == 1) {
+			goalReached = true;
+			break;
+		}
+	}
+
+	if (!goalReached) {
+		printf("ERROR: Plan not found.\n");
+		return;
+	}
+
+	// backtracking to get the plan
+	stack<vector<double>> plan_angles;
+
+	// add goal
+	plan_angles.push(vector<double>(armgoal_anglesV_rad, armgoal_anglesV_rad + numofDOFs));
+	(*planlength)++;
+    
+	vertex* q_curr = tree[treeSize - 1];
+	while (q_curr)
+	{
+		plan_angles.push(q_curr->angles);
+		q_curr = q_curr->parent;
+		(*planlength)++;
+	}
+
+	*plan = (double**)malloc((*planlength) * sizeof(double*));
+	
+	for (size_t i = 0; i < *planlength; i++)
+	{
+		(*plan)[i] = (double*)malloc(numofDOFs * sizeof(double));
+		vector<double> angles = plan_angles.top();
+		plan_angles.pop();
+		for (size_t j = 0; j < numofDOFs; j++)
+		{
+			(*plan)[i][j] = angles[j];
+		}
+	}
+
+	cout << "Plan found." << endl;
+    return;	
 }
 
 //*******************************************************************************************************************//
@@ -382,7 +628,12 @@ static void plannerRRTConnect(
     int *planlength)
 {
     /* TODO: Replace with your implementation */
-    planner(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, numofDOFs, plan, planlength);
+    // planner(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, numofDOFs, plan, planlength);
+
+
+
+
+
 }
 
 //*******************************************************************************************************************//
