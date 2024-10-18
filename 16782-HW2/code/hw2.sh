@@ -37,14 +37,14 @@ fi
 cd ../scripts
 # Step 3: Run the test
 echo "Running grader_hw2.py"
-python grader_hw2.py $FULL_TEST
+python -u grader_hw2.py $FULL_TEST
 
 if [ $? -ne 0 ]; then
     echo "grader_hw2 failed!"
     exit 1
 fi
 
-# Step 4: Call the Python visualizer
+# Step 4: Call the Python visualizer, already included in the grader_hw2.py
 # echo "Running Python visualizer with map${MAP_NUM}.txt"
 # python3 ../scripts/visualizer.py "../maps/map${MAP_NUM}.txt"
 # if [ $? -ne 0 ]; then

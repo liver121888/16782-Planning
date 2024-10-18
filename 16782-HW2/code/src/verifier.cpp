@@ -307,7 +307,10 @@ int main(int argc, char** argv) {
   double* map;
 	int x_size, y_size;
 
-  tie(map, x_size, y_size) = loadMap(argv[1]);
+  std::string mapDirPath = MAPS_DIR;
+  std::string mapFilePath = mapDirPath + "/" + argv[1];
+
+  tie(map, x_size, y_size) = loadMap(mapFilePath);
 	int numOfDOFs = std::stoi(argv[2]);
 	double* startPos = doubleArrayFromString(argv[3]);
 	double* goalPos = doubleArrayFromString(argv[4]);

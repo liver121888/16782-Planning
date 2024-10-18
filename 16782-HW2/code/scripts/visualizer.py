@@ -51,7 +51,7 @@ def createSingleFrame(idx, mapData, allPoses, includePrevious):
     yBase = 0
     linkLength = 10
 
-    print("Frame: ", idx)
+    # print("Frame: ", idx)
 
     xs, ys = [xBase], [yBase]
     for i in range(0, len(curPose)):

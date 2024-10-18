@@ -81,6 +81,7 @@ def graderMain(executablePath, gradingCSV, args):
                     print("Returned an invalid solution")
                 
                 ### Calculate the cost from their solution
+                print("CALCULATE COST")
                 with open(outputSolutionFile) as f:
                     line = f.readline().rstrip()  # filepath of the map
                     solution = []
@@ -97,7 +98,7 @@ def graderMain(executablePath, gradingCSV, args):
                     scores.append([aPlanner, inputMap, i, numSteps, cost, timespent, success])
             
                 ### Visualize their results
-                commandViz = "python visualizer.py ../output/grader_out/tmp.txt --gifFilepath=../output/grader_out/grader_{}{}.gif".format(plannerList[aPlanner], i)
+                commandViz = "python -u visualizer.py ../output/grader_out/tmp.txt --gifFilepath=../output/grader_out/grader_{}{}.gif".format(plannerList[aPlanner], i)
                 commandViz += " --incPrev=1"
                 subprocess.run(commandViz.split(" "), check=True) # True if want to see failure errors
             except Exception as exc:
@@ -108,7 +109,6 @@ def graderMain(executablePath, gradingCSV, args):
     df = pd.DataFrame(scores, columns=["planner", "mapName", "problemIndex", "numSteps", "cost", "timespent", "success"])
     df.to_csv(gradingCSV, index=False)
     print("All the scores saved")
-
 
 if __name__ == "__main__":
 
