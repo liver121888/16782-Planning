@@ -314,7 +314,8 @@ int main(int argc, char** argv) {
 	int numOfDOFs = std::stoi(argv[2]);
 	double* startPos = doubleArrayFromString(argv[3]);
 	double* goalPos = doubleArrayFromString(argv[4]);
-	string inputSolutionFile = argv[5];
+  std::string inputSolutionDirPath = OUTPUT_DIR;
+	string inputSolutionFile = inputSolutionDirPath + "/" + argv[5];
 
   std::ifstream infile(inputSolutionFile);
   if (!infile.is_open()) {
