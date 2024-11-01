@@ -26,12 +26,6 @@ def convertPIs(aString):
         ans.append(str(eval(anExpression))) # Evaluate expressions if needed
     return ans
 
-# Function to generate a list of 3 random doubles between 0 and PI
-def generate_random_doubles_as_string():
-    vals = [random.uniform(0, math.pi) for _ in range(3)]
-    vals_str = ",".join(f"{x:.6f}" for x in vals)
-    return vals_str
-
 ###############################################################
 ################### Main Functions Below ######################
 
@@ -39,19 +33,27 @@ def generate_random_doubles_as_string():
 def graderMain(executablePath, gradingCSV, args):
 
     problems = [["map1.txt", "1.570796,0.785398,1.570796,0.785398,1.570796",
-                                # "0.392699,2.356194,3.141592,2.8274328,4.712388"],
                                 "0.392699,2.356194,3.141592,2.8274328,4.712388"],
             ["map2.txt", "0.392699,2.356194,3.141592",
                                 "1.570796,0.785398,1.570796"]]
 
     if args.arg1 == 1:
+
         print("Running full test")
-        # Generate 20 random problems
-        for _ in range(20):
-            # always use the map2.txt
-            start = generate_random_doubles_as_string()
-            goal = generate_random_doubles_as_string()
-            problems.append(["map2.txt", start, goal])
+        problems = []
+        # Generate 20 random problems, always use the map2.txt
+        caseNum = 20
+        seedRand = 1
+        outputTestFile = "../output/grader_out/test.txt"
+        commandGen = "./../build/test_generator {} {} {} {} {}".format(
+                "map2.txt", numDOFs, caseNum, seedRand, outputTestFile)
+        
+        subprocess.run(commandGen.split(" "), check=True)
+        with open(outputTestFile) as f:
+            for line in f:
+                start, goal = line.split(" ")
+                problems.append(["map2.txt", start, goal])
+
     else:
         print("Running small test")
 
@@ -73,13 +75,22 @@ def graderMain(executablePath, gradingCSV, args):
             try:
                 print("EXECUTING PLANNER")
                 start = timer()
-                subprocess.run(commandPlan.split(" "), check=True) # True if want to see failure errors
+                result = subprocess.run(commandPlan.split(" "), capture_output=True, text=True, check=True)
                 timespent = timer() - start
                 print("EXECUTING VERIFIER" + str(commandVerify))
                 returncode = subprocess.run(commandVerify.split(" "), check=False).returncode
                 if returncode != 0:
                     print("Returned an invalid solution")
                 
+                # Parse Vnum from the output
+                output = result.stdout
+                nodeSize = None
+                for line in output.splitlines():
+                    if "Vnum:" in line:
+                        nodeSize = int(line.split(":")[1].strip())  # Extract Vnum value
+                    
+
+
                 ### Calculate the cost from their solution
                 print("CALCULATE COST")
                 with open(outputSolutionFile) as f:
@@ -93,10 +104,11 @@ def graderMain(executablePath, gradingCSV, args):
                     ## Cost is sum of all joint angle movements
                     difsPos = np.abs(solution[1:,]-solution[:-1,])
                     cost = np.minimum(difsPos, np.abs(2*np.pi - difsPos)).sum()
-
+                    print("Cost: ", cost)
                     success = returncode == 0
-                    scores.append([aPlanner, inputMap, i, numSteps, cost, timespent, success])
+                    scores.append([aPlanner, inputMap, i, numSteps, cost, timespent, success, nodeSize])
             
+                print("VISULIZATION")
                 ### Visualize their results
                 commandViz = "python -u visualizer.py ../output/grader_out/tmp.txt --gifFilepath=../output/grader_out/grader_{}{}.gif".format(plannerList[aPlanner], i)
                 commandViz += " --incPrev=1"
@@ -106,7 +118,7 @@ def graderMain(executablePath, gradingCSV, args):
                 scores.append([aPlanner, inputMap, i, -1, -1, timespent, False])
 
     ### Save all the scores into a csv to compute overall grades
-    df = pd.DataFrame(scores, columns=["planner", "mapName", "problemIndex", "numSteps", "cost", "timespent", "success"])
+    df = pd.DataFrame(scores, columns=["planner", "mapName", "problemIndex", "numSteps", "cost", "timespent", "success", "nodeSize"])
     df.to_csv(gradingCSV, index=False)
     print("All the scores saved")
 
