@@ -327,18 +327,6 @@ int IsValidArmConfiguration(double* angles, int numofDOFs, double* map, int x_si
 
 // My functions
 
-std::vector<double> generateValidRandAngle(int numofDOFs, int epoch, double *map, int x_size, int y_size) {
-	std::vector<double> randAngle(numofDOFs);
-	bool isValid = false;
-	while (!isValid) {
-        for (int i = 0; i < numofDOFs; ++i) {
-            randAngle[i] = ((double) rand() / (RAND_MAX)) * 2 * PI;
-        }
-		isValid = IsValidArmConfiguration(randAngle.data(), numofDOFs, map, x_size, y_size);
-	}
-	return randAngle;
-}
-
 vector<double> random_config(int numofDOFs, double* map, int x_size, int y_size)
 {
   // cout << "In random_config function" << endl;
@@ -389,12 +377,12 @@ int main(int argc, char** argv){
     srand(seedNum);
     for (int i = 0; i < caseNum; ++i) {
     	std::vector<double> rand_start = random_config(numOfDOFs, map, x_size, y_size);
-        std::vector<double> rand_goal = random_config(numOfDOFs, map, x_size, y_size);
+      std::vector<double> rand_goal = random_config(numOfDOFs, map, x_size, y_size);
 
-        // reference: Jinkai Qiu 
+      // reference: Jinkai Qiu 
 
-        cout << "\"";
-        f << "\"";
+      cout << "\"";
+      f << "\"";
     	//print randomStartPos
     	for (int i = 0; i < numOfDOFs-1; ++i) {
     		cout << rand_start[i] << ",";

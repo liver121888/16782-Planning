@@ -43,15 +43,19 @@ def graderMain(executablePath, gradingCSV, args):
         problems = []
         # Generate 20 random problems, always use the map2.txt
         caseNum = 20
-        seedRand = 1
-        outputTestFile = "../output/grader_out/test.txt"
+        seedRand = 2
+        numDOFs = 3
+        outputTestFile = "../output/grader_out/tests.txt"
         commandGen = "./../build/test_generator {} {} {} {} {}".format(
                 "map2.txt", numDOFs, caseNum, seedRand, outputTestFile)
-        
+        print("EXECUTING GEN: " + str(commandGen))
         subprocess.run(commandGen.split(" "), check=True)
         with open(outputTestFile) as f:
             for line in f:
                 start, goal = line.split(" ")
+                start = start.strip("\"\n")
+                goal = goal.strip("\"\n")
+                # print("Start: ", start, "Goal: ", goal)
                 problems.append(["map2.txt", start, goal])
 
     else:
@@ -73,11 +77,11 @@ def graderMain(executablePath, gradingCSV, args):
                 inputMap, numDOFs, startPos, goalPos,
                 outputSolutionFile)
             try:
-                print("EXECUTING PLANNER")
+                print("EXECUTING PLANNER: " + str(commandPlan))
                 start = timer()
                 result = subprocess.run(commandPlan.split(" "), capture_output=True, text=True, check=True)
                 timespent = timer() - start
-                print("EXECUTING VERIFIER" + str(commandVerify))
+                print("EXECUTING VERIFIER: " + str(commandVerify))
                 returncode = subprocess.run(commandVerify.split(" "), check=False).returncode
                 if returncode != 0:
                     print("Returned an invalid solution")

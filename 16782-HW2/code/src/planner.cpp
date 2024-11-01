@@ -424,7 +424,7 @@ bool isCollision(double* q1, double* q2, double* map, int x_size, int y_size, do
 void planner(double* map, int x_size, int y_size, double* armstart_anglesV_rad, double* armgoal_anglesV_rad,
 			 int numofDOFs, double*** plan, int* planlength)
 {
-  cout << "In planner function" << endl;
+  // cout << "In planner function" << endl;
 
   // no plan by default
   *plan = NULL;
@@ -482,12 +482,12 @@ vector<double> random_config(int numofDOFs, double* map, int x_size, int y_size,
   // goal bias
   if (goalBias && double(rand()) / double(RAND_MAX) > 0.90)
   {
-	cout << "goalBiased" << endl;
-	double magnitude = 1.0;
+	// cout << "goalBiased" << endl;
+	double magnitude = 0.5;
 	double randomPerturbation = magnitude * double(rand()) / double(RAND_MAX);
 	for (size_t i = 0; i < numofDOFs; i++)
 	{
-	  result[i] = (armgoal_anglesV_rad[i] + (randomPerturbation - magnitude / 2));
+	  result[i] = (armgoal_anglesV_rad[i] + (randomPerturbation - magnitude/2.0));
 	}
 	return result;
   }
@@ -542,16 +542,16 @@ int extendRRT(vector<vertex*>& tree, int& treeSize, double dq, double epsilon, d
 			  int numofDOFs, double* map, int x_size, int y_size, vector<double> target_angles,
 			  bool isRRTConnect = false)
 {
-  cout << "In extendRRT function" << endl;
+  // cout << "In extendRRT function" << endl;
 
   vertex* q_near = nearest_neighbor(tree, treeSize, numofDOFs, target_angles);
 
-  cout << "q_near: ";
-  for (size_t j = 0; j < numofDOFs; j++)
-  {
-	cout << q_near->angles[j] << " ";
-  }
-  cout << endl;
+  // cout << "q_near: ";
+  // for (size_t j = 0; j < numofDOFs; j++)
+  // {
+	// cout << q_near->angles[j] << " ";
+  // }
+  // cout << endl;
 
   vector<double> direction;
   double dist = 0;
@@ -570,25 +570,25 @@ int extendRRT(vector<vertex*>& tree, int& treeSize, double dq, double epsilon, d
 	// cout << direction[i] << " ";
   }
 
-  cout << "target_angles: ";
-  for (size_t j = 0; j < numofDOFs; j++)
-  {
-	cout << target_angles[j] << " ";
-  }
-  cout << endl;
+  // cout << "target_angles: ";
+  // for (size_t j = 0; j < numofDOFs; j++)
+  // {
+	// cout << target_angles[j] << " ";
+  // }
+  // cout << endl;
 
   int numofSamples = (int)(epsilon / dq);
-  cout << "numofSamples: " << numofSamples << endl;
+  // cout << "numofSamples: " << numofSamples << endl;
   vector<double> new_angles(numofDOFs);
   for (size_t i = 1; i <= numofSamples; i++)
   {
-	cout << "new_angles: ";
+	// cout << "new_angles: ";
 	for (size_t j = 0; j < numofDOFs; j++)
 	{
 	  new_angles[j] = (q_near->angles[j] + dq * i * direction[j]);
-	  cout << new_angles[j] << " ";
+	  // cout << new_angles[j] << " ";
 	}
-	cout << endl;
+	// cout << endl;
 	if (IsValidArmConfiguration(new_angles.data(), numofDOFs, map, x_size, y_size))
 	{
 	  // If didn't reach the target or goal, go to next configuration
@@ -597,7 +597,7 @@ int extendRRT(vector<vertex*>& tree, int& treeSize, double dq, double epsilon, d
 		// Reach q_goal
 		// GOAL_REACHED
 		// add goal
-		cout << "GOAL_REACHED" << endl;
+		// cout << "GOAL_REACHED" << endl;
 		vertex* q_new =
 			new vertex(vector<double>(armgoal_anglesV_rad, armgoal_anglesV_rad + numofDOFs), numofDOFs, q_near);
 		q_new->g = q_near->g + vertex::calculateCost(q_near, q_new);
@@ -609,7 +609,7 @@ int extendRRT(vector<vertex*>& tree, int& treeSize, double dq, double epsilon, d
 	  {
 		// Reach target_angles, will enter this condition when dist < epsilon
 		// REACHED
-		cout << "REACHED" << endl;
+		// cout << "REACHED" << endl;
 		vertex* q_new = new vertex(target_angles, numofDOFs, q_near);
 		q_new->g = q_near->g + vertex::calculateCost(q_near, q_new);
 		tree.push_back(q_new);
@@ -622,13 +622,13 @@ int extendRRT(vector<vertex*>& tree, int& treeSize, double dq, double epsilon, d
 	  if (i == 1)
 	  {
 		// TRAPPED
-		cout << "TRAPPED" << endl;
+		// cout << "TRAPPED" << endl;
 		return 0;
 	  }
 	  else
 	  {
 		// ADVANCED
-		cout << "ADVANCED" << endl;
+		// cout << "ADVANCED" << endl;
 		// take one step back
 		for (size_t j = 0; j < numofDOFs; j++)
 		{
@@ -645,7 +645,7 @@ int extendRRT(vector<vertex*>& tree, int& treeSize, double dq, double epsilon, d
   }
   // Fully extended
   // ADVANCED
-  cout << "FULLY ADVANCED" << endl;
+  // cout << "FULLY ADVANCED" << endl;
   vertex* q_new = new vertex(new_angles, numofDOFs, q_near);
   q_new->g = q_near->g + vertex::calculateCost(q_near, q_new);
   tree.push_back(q_new);
@@ -660,8 +660,7 @@ vector<vertex*> nearestKneighbors(vector<vertex*> tree, int treeSize, int numofD
 
   vector<vertex*> result;
   std::priority_queue<std::pair<double, vertex*>, std::vector<std::pair<double, vertex*>>,
-					  std::greater<std::pair<double, vertex*>>>
-	  pq;
+					  std::greater<std::pair<double, vertex*>>> pq;
 
   // find the neighbors
 
@@ -692,27 +691,56 @@ vector<vertex*> nearestKneighbors(vector<vertex*> tree, int treeSize, int numofD
   return result;
 };
 
+
+// reference: Jinkai Qiu
+vector<vector<double>> pathShortening(vector<vector<double>>& plan, int numofDOFs, double* map, int x_size, int y_size, double dq) 
+{
+	vector<vector<double>> shorten;
+	shorten.push_back(plan[0]);
+	int i = 1;
+	vector<double> P = plan[0];
+	vector<double> P1 = plan[1];
+	vector<double> P2 = plan[i];
+	vector<double> goal = plan[plan.size()-1];
+	while (P != goal) {
+		while (!isCollision(P.data(), P2.data(), map, x_size, y_size, dq, numofDOFs) && P2 != goal) {
+			P1 = P2;
+			i++;
+			P2 = plan[i];
+		}
+		shorten.push_back(P1);
+		P = P1;
+		P1 = P2;
+		}
+	return shorten;
+}
+
+
 void makePlan(vector<vertex*>& tree, int treeSize, int numofDOFs, double* armgoal_anglesV_rad, double*** plan,
-			  int* planlength)
+			  int* planlength, double* map, int x_size, int y_size, double dq)
 {
   // backtracking to get the plan
-  stack<vector<double>> plan_angles;
+  vector<vector<double>> plan_angles;
 
   vertex* q_curr = tree[treeSize - 1];
   while (q_curr)
   {
-	plan_angles.push(q_curr->angles);
+	plan_angles.push_back(q_curr->angles);
 	q_curr = q_curr->parent;
-	(*planlength)++;
+	// (*planlength)++;
   }
+	std::reverse(plan_angles.begin(), plan_angles.end());
+
+  vector<vector<double>> shorten_plan_angles = pathShortening(plan_angles, numofDOFs, map, x_size, y_size, dq); 
+
+  *planlength = shorten_plan_angles.size();
 
   *plan = (double**)malloc((*planlength) * sizeof(double*));
 
   for (size_t i = 0; i < *planlength; i++)
   {
 	(*plan)[i] = (double*)malloc(numofDOFs * sizeof(double));
-	vector<double> angles = plan_angles.top();
-	plan_angles.pop();
+	vector<double> angles = shorten_plan_angles[i];
 	for (size_t j = 0; j < numofDOFs; j++)
 	{
 	  (*plan)[i][j] = angles[j];
@@ -720,13 +748,14 @@ void makePlan(vector<vertex*>& tree, int treeSize, int numofDOFs, double* armgoa
   }
 }
 
+
 static void plannerRRT(double* map, int x_size, int y_size, double* armstart_anglesV_rad, double* armgoal_anglesV_rad,
 					   int numofDOFs, double*** plan, int* planlength)
 {
   /* TODO: Replace with your implementation */
   // planner(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, numofDOFs, plan, planlength);
 
-  cout << "In plannerRRT function" << endl;
+  // cout << "In plannerRRT function" << endl;
 
   // no plan by default
   *plan = NULL;
@@ -766,10 +795,10 @@ static void plannerRRT(double* map, int x_size, int y_size, double* armstart_ang
   }
 
   // construct the plan
-  makePlan(tree, treeSize, numofDOFs, armgoal_anglesV_rad, plan, planlength);
+  makePlan(tree, treeSize, numofDOFs, armgoal_anglesV_rad, plan, planlength, map, x_size, y_size, dq);
 
   cout << "Plan found." << endl;
-  return;
+  cout << "Vnum: " << treeSize << endl;
 }
 
 //*******************************************************************************************************************//
@@ -784,7 +813,7 @@ static void plannerRRTConnect(double* map, int x_size, int y_size, double* armst
   /* TODO: Replace with your implementation */
   // planner(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, numofDOFs, plan, planlength);
 
-  cout << "In plannerRRTConnect function" << endl;
+  // cout << "In plannerRRTConnect function" << endl;
 
   // no plan by default
   *plan = NULL;
@@ -865,30 +894,37 @@ static void plannerRRTConnect(double* map, int x_size, int y_size, double* armst
 	return;
   }
 
-  deque<vector<double>> plan_angles;
+  // printf("Build plan\n");
 
+  vector<vector<double>> plan_angles;
+  // mid to goal
   vertex* q_curr = treeB[treeBSize - 1];
   while (q_curr)
   {
 	plan_angles.push_back(q_curr->angles);
 	q_curr = q_curr->parent;
-	(*planlength)++;
   }
+  // reverse so goal to mid now
+  std::reverse(plan_angles.begin(), plan_angles.end());
   q_curr = treeA[treeASize - 1];
+  // mid to start
   while (q_curr)
   {
-	plan_angles.push_front(q_curr->angles);
+	plan_angles.push_back(q_curr->angles);
 	q_curr = q_curr->parent;
-	(*planlength)++;
   }
+  // again so start to goal now
+  std::reverse(plan_angles.begin(), plan_angles.end());
 
+  plan_angles = pathShortening(plan_angles, numofDOFs, map, x_size, y_size, dq);
+
+  *planlength = plan_angles.size();
   *plan = (double**)malloc((*planlength) * sizeof(double*));
 
   for (size_t i = 0; i < *planlength; i++)
   {
 	(*plan)[i] = (double*)malloc(numofDOFs * sizeof(double));
-	vector<double> angles = plan_angles.front();
-	plan_angles.pop_front();
+	vector<double> angles = plan_angles[i];
 	for (size_t j = 0; j < numofDOFs; j++)
 	{
 	  (*plan)[i][j] = angles[j];
@@ -896,7 +932,7 @@ static void plannerRRTConnect(double* map, int x_size, int y_size, double* armst
   }
 
   cout << "Plan found." << endl;
-  return;
+  cout << "Vnum: " << treeASize + treeBSize << endl;
 }
 
 //*******************************************************************************************************************//
@@ -948,24 +984,24 @@ void rewire(std::vector<vertex*>& tree, int& treeSize, double dq, double epsilon
 {
   vertex* lastVertex = tree[treeSize - 1];
   lastVertex->id = treeSize;
-  cout << "lastVertex->id: " << lastVertex->id << endl;
+  // cout << "lastVertex->id: " << lastVertex->id << endl;
 
   double gamma = 3.7;
   // volume of unit ball in n-dimension
   double delta = pow(PI, numofDOFs/2.0)/tgamma(numofDOFs/2.0 + 1);
   double r_candidate = pow((gamma/delta * log(treeSize)/treeSize),1.0/numofDOFs);
   double r = std::min(r_candidate, epsilon);
-  cout << "r_candidate: " << r_candidate << ", r: " << r << ", epsilon: " << epsilon << endl;
+  // cout << "r_candidate: " << r_candidate << ", r: " << r << ", epsilon: " << epsilon << endl;
   vector<vertex*> nbs = neighbors(tree, treeSize, numofDOFs, r, lastVertex->angles, map, x_size, y_size, dq);
 
   for (auto neighbor : nbs)
   {
-	cout << "neighbor->id: " << neighbor->id << endl;
+	// cout << "neighbor->id: " << neighbor->id << endl;
 	double newCost = neighbor->g + vertex::calculateCost(lastVertex, neighbor);
 	if (newCost < lastVertex->g &&
 		!isCollision(neighbor->angles.data(), lastVertex->angles.data(), map, x_size, y_size, dq, numofDOFs))
 	{
-	  cout << "rewire lastVertex" << endl;
+	  // cout << "rewire lastVertex" << endl;
 	  lastVertex->parent = neighbor;
 	  lastVertex->g = newCost;
 	}
@@ -977,7 +1013,7 @@ void rewire(std::vector<vertex*>& tree, int& treeSize, double dq, double epsilon
 	if (newCost < neighbor->g &&
 		!isCollision(neighbor->angles.data(), lastVertex->angles.data(), map, x_size, y_size, dq, numofDOFs))
 	{
-	  cout << "rewire neighbor" << endl;
+	  // cout << "rewire neighbor" << endl;
 	  neighbor->parent = lastVertex;
 	  neighbor->g = newCost;
 	}
@@ -999,7 +1035,7 @@ static void plannerRRTStar(double* map, int x_size, int y_size, double* armstart
   /* TODO: Replace with your implementation */
   // planner(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, numofDOFs, plan, planlength);
 
-  cout << "In plannerRRTStar function" << endl;
+  // cout << "In plannerRRTStar function" << endl;
 
   // no plan by default
   *plan = NULL;
@@ -1027,8 +1063,7 @@ static void plannerRRTStar(double* map, int x_size, int y_size, double* armstart
   while (treeSize < K)
   {
 	vector<double> rand_angles = random_config(numofDOFs, map, x_size, y_size, armgoal_anglesV_rad, true);
-	if (extendRewire(tree, treeSize, dq, epsilon, armgoal_anglesV_rad, numofDOFs, map, x_size, y_size, rand_angles) ==
-		3)
+	if (extendRewire(tree, treeSize, dq, epsilon, armgoal_anglesV_rad, numofDOFs, map, x_size, y_size, rand_angles) == 3)
 	{
 	  goalReached = true;
 	  break;
@@ -1042,10 +1077,10 @@ static void plannerRRTStar(double* map, int x_size, int y_size, double* armstart
   }
 
   // construct the plan
-  makePlan(tree, treeSize, numofDOFs, armgoal_anglesV_rad, plan, planlength);
+  makePlan(tree, treeSize, numofDOFs, armgoal_anglesV_rad, plan, planlength, map, x_size, y_size, dq);
 
   cout << "Plan found." << endl;
-  return;
+  cout << "Vnum: " << treeSize << endl;
 }
 
 //*******************************************************************************************************************//
@@ -1063,10 +1098,10 @@ struct CompareVertex
   }
 };
 
-stack<vertex*> astar(int numofDOFs, double* armstart_anglesV_rad, double* armgoal_anglesV_rad,
+vector<vertex*> astar(int numofDOFs, double* armstart_anglesV_rad, double* armgoal_anglesV_rad,
 					 std::vector<vertex*>& graph, std::vector<std::unordered_set<int>>& adjacency)
 {
-  stack<vertex*> path;
+  vector<vertex*> path;
   bool foundPath = false;
   std::priority_queue<vertex*, vector<vertex*>, CompareVertex> open_pq;
   std::unordered_set<vertex*> closed;
@@ -1077,7 +1112,7 @@ stack<vertex*> astar(int numofDOFs, double* armstart_anglesV_rad, double* armgoa
 	cur = open_pq.top();
 	open_pq.pop();
 	closed.insert(cur);
-	cout << "cur->id: " << cur->id << endl;
+	// cout << "cur->id: " << cur->id << endl;
 	if (cur == graph[1])
 	{
 	  foundPath = true;
@@ -1103,11 +1138,11 @@ stack<vertex*> astar(int numofDOFs, double* armstart_anglesV_rad, double* armgoa
   }
   if (!foundPath)
   {
-	return stack<vertex*>();
+	return vector<vertex*>();
   }
   while (cur != nullptr)
   {
-	path.push(cur);
+	path.push_back(cur);
 	cur = cur->parent;
   }
   return path;
@@ -1119,7 +1154,7 @@ static void plannerPRM(double* map, int x_size, int y_size, double* armstart_ang
   /* TODO: Replace with your implementation */
   // planner(map, x_size, y_size, armstart_anglesV_rad, armgoal_anglesV_rad, numofDOFs, plan, planlength);
 
-  cout << "In plannerPRM function" << endl;
+  // cout << "In plannerPRM function" << endl;
 
   // no plan by default
   *plan = NULL;
@@ -1127,8 +1162,7 @@ static void plannerPRM(double* map, int x_size, int y_size, double* armstart_ang
 
   // max sample size
   // INT32_MAX = 2147483647
-  int K = 10000;
-  int near_k = 5;
+
   // collision checking
   double dq = 0.01;
 
@@ -1154,63 +1188,78 @@ static void plannerPRM(double* map, int x_size, int y_size, double* armstart_ang
 
   // sample K configurations
   int k = 2;
-  while (k < K)
+
+  int maxIter = 10;
+  int near_k = 5;
+  int iter_k = 5000;
+  bool planFound = false;
+  vector<vertex*> path;
+  for (size_t iter = 1; iter <= maxIter; iter++)
   {
-	vector<double> rand_angles = random_config(numofDOFs, map, x_size, y_size, armgoal_anglesV_rad, false);
-	cout << "rand_angles: ";
-	for (size_t i = 0; i < numofDOFs; i++)
-	{
-	  cout << rand_angles[i] << " ";
-	}
-	cout << endl;
-	vector<double> near_rand_angles(numofDOFs);
+    while (k < iter_k * iter)
+    {
+    vector<double> rand_angles = random_config(numofDOFs, map, x_size, y_size, armgoal_anglesV_rad, false);
+    // cout << "rand_angles: ";
+    // for (size_t i = 0; i < numofDOFs; i++)
+    // {
+      // cout << rand_angles[i] << " ";
+    // }
+    // cout << endl;
+    vector<double> near_rand_angles(numofDOFs);
 
-	cout << "near_rand_angles: ";
-	for (size_t i = 0; i < numofDOFs; i++)
-	{
-	  double magnitude = 1.0;
-	  double randomPerturbation = magnitude * double(rand()) / double(RAND_MAX);
-	  near_rand_angles[i] = (rand_angles[i] + (randomPerturbation - magnitude / 2));
-	  cout << near_rand_angles[i] << " ";
-	}
-	cout << endl;
+    // cout << "near_rand_angles: ";
+    for (size_t i = 0; i < numofDOFs; i++)
+    {
+      double magnitude = 1.0;
+      double randomPerturbation = magnitude * double(rand()) / double(RAND_MAX);
+      near_rand_angles[i] = (rand_angles[i] + (randomPerturbation - magnitude / 2));
+      // cout << near_rand_angles[i] << " ";
+    }
+    // cout << endl;
 
-	if (!IsValidArmConfiguration(near_rand_angles.data(), numofDOFs, map, x_size, y_size))
-	{
-	  vertex* q_new = new vertex(rand_angles, numofDOFs, nullptr);
-	  q_new->id = k;
-	  graph.push_back(q_new);
-	  graphSize++;
-	  adjacency.push_back(std::unordered_set<int>());
-	  edgeSize++;
-	  k++;
-	}
+    if (!IsValidArmConfiguration(near_rand_angles.data(), numofDOFs, map, x_size, y_size))
+    {
+      vertex* q_new = new vertex(rand_angles, numofDOFs, nullptr);
+      q_new->id = k;
+      graph.push_back(q_new);
+      graphSize++;
+      adjacency.push_back(std::unordered_set<int>());
+      edgeSize++;
+      k++;
+    }
+    }
+
+    // connect the graph
+    for (vertex* v : graph)
+    {
+    // cout << "v->id: " << v->id << endl;
+    vector<vertex*> neighborhood =
+      nearestKneighbors(graph, graphSize, numofDOFs, near_k*iter, v->angles, map, x_size, y_size, dq);
+    for (vertex* neighbor : neighborhood)
+    {
+      // cout << "neighbor->id: " << neighbor->id << endl;
+      // exclude self
+      if (v->id != neighbor->id)
+      {
+      adjacency[v->id].insert(neighbor->id);
+      adjacency[neighbor->id].insert(v->id);
+      }
+    }
+    }
+
+    // find the shortest path
+    path = astar(numofDOFs, armstart_anglesV_rad, armgoal_anglesV_rad, graph, adjacency);
+    if (!path.empty())
+    {
+      planFound = true;
+      break;
+    }
+
   }
 
-  // connect the graph
-  for (vertex* v : graph)
-  {
-	cout << "v->id: " << v->id << endl;
-	vector<vertex*> neighborhood =
-		nearestKneighbors(graph, graphSize, numofDOFs, near_k, v->angles, map, x_size, y_size, dq);
-	for (vertex* neighbor : neighborhood)
-	{
-	  cout << "neighbor->id: " << neighbor->id << endl;
-	  // exclude self
-	  if (v->id != neighbor->id)
-	  {
-		adjacency[v->id].insert(neighbor->id);
-		adjacency[neighbor->id].insert(v->id);
-	  }
-	}
-  }
+  // cout << "path.size(): " << path.size() << endl;
 
-  // find the shortest path
-  stack<vertex*> path = astar(numofDOFs, armstart_anglesV_rad, armgoal_anglesV_rad, graph, adjacency);
-
-  cout << "path.size(): " << path.size() << endl;
-
-  if (path.empty())
+  if (!planFound)
   {
 	printf("ERROR: Plan not found.\n");
 	return;
@@ -1219,12 +1268,13 @@ static void plannerPRM(double* map, int x_size, int y_size, double* armstart_ang
   *planlength = path.size();
   *plan = (double**)malloc((*planlength) * sizeof(double*));
 
+  std::reverse(path.begin(), path.end());
+
   for (size_t i = 0; i < *planlength; i++)
   {
 	(*plan)[i] = (double*)malloc(numofDOFs * sizeof(double));
-	cout << "path.top()->id: " << path.top()->id << endl;
-	vector<double> angles = path.top()->angles;
-	path.pop();
+	// cout << "path.top()->id: " << path.top()->id << endl;
+	vector<double> angles = path[i]->angles;
 	for (size_t j = 0; j < numofDOFs; j++)
 	{
 	  (*plan)[i][j] = angles[j];
@@ -1232,6 +1282,7 @@ static void plannerPRM(double* map, int x_size, int y_size, double* armstart_ang
   }
 
   cout << "Plan found." << endl;
+  cout << "Vnum: " << graphSize << endl;
   return;
 }
 
