@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <stdexcept>
 #include <queue>
+#include <limits>
+#include <chrono>
 
 
 #define SYMBOLS 0
@@ -31,7 +33,8 @@ using namespace std;
 
 bool print_status = true;
 
-
+// predicate: Clear, On
+// arg_values: [A], [A, B]
 class GroundedCondition
 {
     string predicate;
@@ -116,6 +119,14 @@ public:
     }
 };
 
+struct GroundedConditionHasher
+{
+    size_t operator()(const GroundedCondition& gcond) const
+    {
+        return hash<string>{}(gcond.toString());
+    }
+};
+
 struct GroundedConditionComparator
 {
     bool operator()(const GroundedCondition& lhs, const GroundedCondition& rhs) const
@@ -124,13 +135,7 @@ struct GroundedConditionComparator
     }
 };
 
-struct GroundedConditionHasher
-{
-    size_t operator()(const GroundedCondition& gcond) const
-    {
-        return hash<string>{}(gcond.toString());
-    }
-};
+using GroundedConditionSet = unordered_set<GroundedCondition, GroundedConditionHasher, GroundedConditionComparator>;
 
 class Condition
 {
@@ -210,14 +215,6 @@ public:
     }
 };
 
-struct ConditionComparator
-{
-    bool operator()(const Condition& lhs, const Condition& rhs) const
-    {
-        return lhs == rhs;
-    }
-};
-
 struct ConditionHasher
 {
     size_t operator()(const Condition& cond) const
@@ -226,17 +223,137 @@ struct ConditionHasher
     }
 };
 
+struct ConditionComparator
+{
+    bool operator()(const Condition& lhs, const Condition& rhs) const
+    {
+        return lhs == rhs;
+    }
+};
+
+using ConditionSet = unordered_set<Condition, ConditionHasher, ConditionComparator>;
+
+// Example: GroundedAction("MoveToTable", { "A", "B" })
+class GroundedAction
+{
+    string name;
+    list<string> arg_values;
+    GroundedConditionSet preconditions;
+    GroundedConditionSet effects;
+
+public:
+    GroundedAction(const string &name, const list<string>& arg_values,
+                    const GroundedConditionSet& preconditions,
+                    const GroundedConditionSet& effects)
+    {
+        this->name = name;
+        for (const string& ar : arg_values)
+        {
+            this->arg_values.push_back(ar);
+        }
+        for (const GroundedCondition& pc : preconditions)
+        {
+            this->preconditions.insert(pc);
+        }
+        for (const GroundedCondition& pc : effects)
+        {
+            this->effects.insert(pc);
+        }
+    }
+
+    string get_name() const
+    {
+        return this->name;
+    }
+    list<string> get_arg_values() const
+    {
+        return this->arg_values;
+    }
+    GroundedConditionSet get_preconditions() const
+    {
+        return this->preconditions;
+    }
+    GroundedConditionSet get_effects() const
+    {
+        return this->effects;
+    }
+
+    bool operator==(const GroundedAction& rhs) const
+    {
+        if (this->name != rhs.name || this->arg_values.size() != rhs.arg_values.size())
+            return false;
+
+        auto lhs_it = this->arg_values.begin();
+        auto rhs_it = rhs.arg_values.begin();
+
+        while (lhs_it != this->arg_values.end() && rhs_it != rhs.arg_values.end())
+        {
+            if (*lhs_it != *rhs_it)
+                return false;
+            ++lhs_it;
+            ++rhs_it;
+        }
+        return true;
+    }
+
+    friend ostream& operator<<(ostream& os, const GroundedAction& gac)
+    {
+        os << gac.toString() << " ";
+        os << "Precondition: ";
+        for (const GroundedCondition& precond : gac.get_preconditions())
+            os << precond;
+        os << endl;
+        os << "Effect: ";
+        for (const GroundedCondition& effect : gac.get_effects())
+            os << effect;
+        os << endl;
+        return os;
+    }
+
+    string toString() const
+    {
+        string temp;
+        temp += this->name;
+        temp += "(";
+        for (const string& l : this->arg_values)
+        {
+            temp += l + ",";
+        }
+        temp = temp.substr(0, temp.length() - 1);
+        temp += ")";
+        return temp;
+    }
+};
+
+struct GroundedActionHasher
+{
+    size_t operator()(const GroundedAction& gac) const
+    {
+        return hash<string>{}(gac.toString());
+    }
+};
+
+struct GroundedActionComparator
+{
+    bool operator()(const GroundedAction& lhs, const GroundedAction& rhs) const
+    {
+        return lhs == rhs;
+    }
+};
+
+using GroundedActionSet = unordered_set<GroundedAction, GroundedActionHasher, GroundedActionComparator>;
+
 class Action
 {
     string name;
     list<string> args;
-    unordered_set<Condition, ConditionHasher, ConditionComparator> preconditions;
-    unordered_set<Condition, ConditionHasher, ConditionComparator> effects;
+    ConditionSet preconditions;
+    ConditionSet effects;
 
 public:
     Action(const string &name, const list<string>& args,
-           const unordered_set<Condition, ConditionHasher, ConditionComparator>& preconditions,
-           const unordered_set<Condition, ConditionHasher, ConditionComparator>& effects)
+           const ConditionSet& preconditions,
+           const ConditionSet& effects)
     {
         this->name = name;
         for (const string& l : args)
@@ -260,11 +377,11 @@ public:
     {
         return this->args;
     }
-    unordered_set<Condition, ConditionHasher, ConditionComparator> get_preconditions() const
+    ConditionSet get_preconditions() const
     {
         return this->preconditions;
     }
-    unordered_set<Condition, ConditionHasher, ConditionComparator> get_effects() const
+    ConditionSet get_effects() const
     {
         return this->effects;
     }
@@ -306,14 +423,6 @@ public:
     }
 };
 
-struct ActionComparator
-{
-    bool operator()(const Action& lhs, const Action& rhs) const
-    {
-        return lhs == rhs;
-    }
-};
-
 struct ActionHasher
 {
     size_t operator()(const Action& ac) const
@@ -322,11 +431,21 @@ struct ActionHasher
     }
 };
 
+struct ActionComparator
+{
+    bool operator()(const Action& lhs, const Action& rhs) const
+    {
+        return lhs == rhs;
+    }
+};
+
+using ActionSet = unordered_set<Action, ActionHasher, ActionComparator>;
+
 class Env
 {
-    unordered_set<GroundedCondition, GroundedConditionHasher, GroundedConditionComparator> initial_conditions;
-    unordered_set<GroundedCondition, GroundedConditionHasher, GroundedConditionComparator> goal_conditions;
-    unordered_set<Action, ActionHasher, ActionComparator> actions;
+    GroundedConditionSet initial_conditions;
+    GroundedConditionSet goal_conditions;
+    ActionSet actions;
     unordered_set<string> symbols;
 
 public:
@@ -411,70 +530,6 @@ public:
     }
 };
 
-class GroundedAction
-{
-    string name;
-    list<string> arg_values;
-
-public:
-    GroundedAction(const string &name, const list<string>& arg_values)
-    {
-        this->name = name;
-        for (const string& ar : arg_values)
-        {
-            this->arg_values.push_back(ar);
-        }
-    }
-
-    string get_name() const
-    {
-        return this->name;
-    }
-
-    list<string> get_arg_values() const
-    {
-        return this->arg_values;
-    }
-
-    bool operator==(const GroundedAction& rhs) const
-    {
-        if (this->name != rhs.name || this->arg_values.size() != rhs.arg_values.size())
-            return false;
-
-        auto lhs_it = this->arg_values.begin();
-        auto rhs_it = rhs.arg_values.begin();
-
-        while (lhs_it != this->arg_values.end() && rhs_it != rhs.arg_values.end())
-        {
-            if (*lhs_it != *rhs_it)
-                return false;
-            ++lhs_it;
-            ++rhs_it;
-        }
-        return true;
-    }
-
-    friend ostream& operator<<(ostream& os, const GroundedAction& gac)
-    {
-        os << gac.toString() << " ";
-        return os;
-    }
-
-    string toString() const
-    {
-        string temp;
-        temp += this->name;
-        temp += "(";
-        for (const string& l : this->arg_values)
-        {
-            temp += l + ",";
-        }
-        temp = temp.substr(0, temp.length() - 1);
-        temp += ")";
-        return temp;
-    }
-};
-
 list<string> parse_symbols(string symbols_str)
 {
     list<string> symbols;
@@ -504,8 +559,8 @@ Env* create_env(char* filename)
     regex effectRegex("effects:(.*)", regex::icase);
     int parser = SYMBOLS;
 
-    unordered_set<Condition, ConditionHasher, ConditionComparator> preconditions;
-    unordered_set<Condition, ConditionHasher, ConditionComparator> effects;
+    ConditionSet preconditions;
+    ConditionSet effects;
     string action_name;
     string action_args;
 
@@ -755,20 +810,293 @@ Env* create_env(char* filename)
     return env;
 }
 
+
+struct Node 
+{
+    int g = numeric_limits<int>::max();
+    int h = numeric_limits<int>::max();
+    int f = numeric_limits<int>::max();
+
+    // parent (condition), a node
+    Node* parent = nullptr;
+
+    // action (parent to this node), an edge
+    GroundedAction* parentAction = nullptr;
+
+    // conditions
+    GroundedConditionSet conditions;
+
+    // constant reference, no copy, no modification
+    Node (const GroundedConditionSet& conds)
+    {
+        this->conditions = conds;
+    }
+
+    int calHeuristic(const Env* env)
+    {
+        int result = 0;
+        for (const GroundedCondition& gc : env->get_goal_conditions())
+        {
+            if (this->conditions.find(gc) == this->conditions.end())
+            {
+                result++;
+            }
+        }
+        this->h = result;
+    }
+
+    void updatePriority()
+    {
+        this->f = this->g + this->h;
+    }
+
+};
+
+struct CompareNode
+{
+    bool operator()(const Node* lhs, const Node* rhs) const
+    {
+        return lhs->f > rhs->f;
+    }
+};
+
+bool checkConditions(GroundedConditionSet aConds, 
+                        GroundedConditionSet bConds)
+{
+    for (const GroundedCondition& gc : aConds)
+    {
+        if (bConds.find(gc) == bConds.end())
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// https://chatgpt.com/c/67352087-2000-8012-8dd4-286cb56007e6
+stack<Node*> aStar(const GroundedConditionSet& initConds,
+                    const GroundedConditionSet& goalConds,
+                    const unordered_map<string, list<GroundedAction>>& actionSpace,
+                    const Env* env)
+{
+    // open list
+    priority_queue<Node*, vector<Node*>, CompareNode> open;
+    // closed list
+    list<GroundedConditionSet> closed;
+
+    // start node
+    Node* start = new Node(initConds);
+    start->g = 0;
+    start->calHeuristic(env);
+    start->updatePriority();
+    start->parent = nullptr;
+    start->parentAction = nullptr;
+    
+    open.push(start);
+
+    while (open.empty())
+    {
+        Node* topPriorityNode = open.top();
+        open.pop();
+
+        // if (checkConditions(topPriorityNode->conditions, goalConds))
+        // {
+        //     // goal reached, backtrace
+        //     stack<Node*> path;
+        //     while (topPriorityNode != nullptr)
+        //     {
+        //         path.push(topPriorityNode);
+        //         topPriorityNode = topPriorityNode->parent;
+        //     }
+        //     cout << "Explored Node Num: " << closed.size() << endl;
+        //     return path;
+        // }
+
+        // closed.push_back(topPriorityNode->conditions);
+
+        // // get all possible actions
+        // for (auto& aPair : actionSpace)
+        // {
+        //     string actionName = aPair.first;
+        //     for (const GroundedAction& action : aPair.second)
+        //     {
+        //         GroundedCondition gc(actionName, action.get_arg_values());
+
+        //         if (checkConditions(gc, topPriorityNode->conditions))
+        //         {
+        //             Node* newNode = new Node(action.get_effects());
+        //             newNode->parent = topPriorityNode;
+        //             newNode->parentAction = new GroundedAction(action);
+        //             newNode->g = topPriorityNode->g + 1;
+        //             newNode->calHeuristic(env);
+        //             newNode->updatePriority();
+
+        //             if ()
+        //             {
+        //                 open.push(newNode);
+        //             }
+        //         }
+        //     }
+        // }
+
+
+
+
+    }
+    
+}
+
+void groundCondition(const ConditionSet& conditions,
+                        const list<string>& params,
+                        GroundedConditionSet& grounded_conds)
+{
+    // directly modify the grounded_conds
+    // for (const Condition& cond : conditions)
+    // {
+    //     string pred = cond.get_predicate();
+    //     list<string> args = cond.get_args();
+    //     bool truth = cond.get_truth();
+
+    //     string grounded_pred = pred;
+    //     list<string> grounded_args;
+    //     for (const string& arg : args)
+    //     {
+    //         if (arg[0] == '?')
+    //         {
+    //             int index = stoi(arg.substr(1));
+    //             grounded_args.push_back(params[index]);
+    //         }
+    //         else
+    //         {
+    //             grounded_args.push_back(arg);
+    //         }
+    //     }
+    //     grounded_conds.insert(GroundedCondition(grounded_pred, grounded_args, truth));
+    // }
+}
+
+// Helper function to generate all permutations of a combination
+void generatePermutations(const list<string>& combination, list<list<string>>& combinations) {
+    vector<string> temp(combination.begin(), combination.end());
+    do {
+        combinations.push_back(list<string>(temp.begin(), temp.end()));
+    } while (next_permutation(temp.begin(), temp.end()));
+}
+
+// Function to generate the action space with all grounded actions
+unordered_map<string, list<GroundedAction>> generateActionSpace(const ActionSet& actions, const unordered_set<string>& symbols)
+{
+    unordered_map<string, list<GroundedAction>> actionSpace;
+
+    list<string> symbolList(symbols.begin(), symbols.end());
+    // Ensure consistent ordering
+    symbolList.sort();
+
+    // Iterate over each action template
+    for (const Action& action : actions) {
+        auto paramCount = action.get_args().size();
+        // Skip if not enough symbols for parameters
+        if (paramCount > symbolList.size())
+            continue;
+
+        // Generate unique combinations of symbols
+        vector<string> symbolVector(symbolList.begin(), symbolList.end());
+
+        // select = {true, true, true};
+        vector<bool> select(paramCount, true);
+        // select = {true, true, true, false, false};
+        select.resize(symbolVector.size(), false);
+
+        list<list<string>> parameterCombinations;
+        do {
+            list<string> combination;
+            for (size_t i = 0; i < symbolVector.size(); ++i) {
+                if (select[i]) {
+                    combination.push_back(symbolVector[i]);
+                }
+            }
+            // Generate all permutations for each unique combination
+            generatePermutations(combination, parameterCombinations);
+        } while (prev_permutation(select.begin(), select.end()));
+
+        // Add each grounded action to the action space
+        for (const auto& params : parameterCombinations) {
+            GroundedConditionSet groundedPreconditions;
+            GroundedConditionSet groundedEffects;
+            groundCondition(action.get_preconditions(), params, groundedPreconditions);
+            groundCondition(action.get_effects(), params, groundedEffects);
+            GroundedAction groundedAction(action.get_name(), params, groundedPreconditions, groundedEffects);
+            actionSpace[action.get_name()].push_back(groundedAction);
+        }
+    }
+    return actionSpace;
+}
+
 list<GroundedAction> planner(Env* env)
 {
     //////////////////////////////////////////
     ///// TODO: INSERT YOUR PLANNER HERE /////
     //////////////////////////////////////////
 
-    // Blocks World example (TODO: CHANGE THIS)
-    cout << endl << "CREATING DEFAULT PLAN" << endl;
-    list<GroundedAction> actions;
-    actions.push_back(GroundedAction("MoveToTable", { "A", "B" }));
-    actions.push_back(GroundedAction("Move", { "C", "Table", "A" }));
-    actions.push_back(GroundedAction("Move", { "B", "Table", "C" }));
+    auto startTime = chrono::high_resolution_clock::now();
+    list<GroundedAction> plan;
 
-    return actions;
+    ActionSet actions = env->get_actions();
+    unordered_set<string> symbols = env->get_symbols();
+
+    // Have a bunch of actions, now need to generate all possible combinations of actions with the symbols
+    unordered_map<string, list<GroundedAction>> actionSpace = generateActionSpace(actions, symbols);
+
+    // for (auto& aPair : actionSpace) {
+    //     cout << "Action: " << aPair.first << endl;
+    //     for (const GroundedAction& ga : aPair.second) {
+    //         cout << ga << endl;
+    //     }
+    // }
+
+    // start
+    GroundedConditionSet initialConditions = env->get_initial_conditions();
+
+    cout << "Initial Conditions: " << endl;
+    for (const GroundedCondition& gc : initialConditions)
+    {
+        cout << gc << endl;
+    }
+
+    // goal
+    GroundedConditionSet goalConditions = env->get_goal_conditions();
+
+    cout << "Goal Conditions: " << endl;
+    for (const GroundedCondition& gc : goalConditions)
+    {
+        cout << gc << endl;
+    }
+
+    // top: start, bottom: goal
+    // stack<Node*> path = aStar(initialConditions, goalConditions, actionSpace, env);
+    // while (!path.empty())
+    // {
+    //     Node* topPriorityNode = path.top();
+    //     path.pop();
+    //     if (topPriorityNode->parentAction != nullptr)
+    //     {
+    //         plan.push_back(*(topPriorityNode->parentAction));
+    //     }
+    // }
+
+    // Blocks World example (TODO: CHANGE THIS)
+    // cout << endl << "CREATING DEFAULT PLAN" << endl;
+    // list<GroundedAction> actions;
+    // plan.push_back(GroundedAction("MoveToTable", { "A", "B" }));
+    // plan.push_back(GroundedAction("Move", { "C", "Table", "A" }));
+    // plan.push_back(GroundedAction("Move", { "B", "Table", "C" }));
+
+    auto endTime = chrono::high_resolution_clock::now();
+
+    auto duration = chrono::duration_cast<chrono::milliseconds>(endTime - startTime);
+    cout << "Planning time: " << duration.count() << " ms" << endl;
+
+    return plan;
 }
 
 
