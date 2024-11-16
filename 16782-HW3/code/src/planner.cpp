@@ -76,6 +76,11 @@ public:
         return this->truth;
     }
 
+    void set_truth(bool truth)
+    {
+        this->truth = truth;
+    }
+
     friend ostream& operator<<(ostream& os, const GroundedCondition& pred)
     {
         os << pred.toString() << " ";
@@ -107,6 +112,8 @@ public:
     string toString() const
     {
         string temp;
+        if (!this->truth)
+            temp += "!";
         temp += this->predicate;
         temp += "(";
         for (const string& l : this->arg_values)
@@ -832,7 +839,7 @@ struct Node
         this->conditions = conds;
     }
 
-    int calHeuristic(const Env* env)
+    void calHeuristic(const Env* env)
     {
         int result = 0;
         for (const GroundedCondition& gc : env->get_goal_conditions())
@@ -850,6 +857,16 @@ struct Node
         this->f = this->g + this->h;
     }
 
+    string toString() const
+    {
+        string temp;
+        for (const GroundedCondition& gc : this->conditions)
+        {
+            temp += gc.toString() + " ";
+        }
+        return temp;
+    }
+
 };
 
 struct CompareNode
@@ -860,18 +877,64 @@ struct CompareNode
     }
 };
 
-bool checkConditions(GroundedConditionSet aConds, 
-                        GroundedConditionSet bConds)
-{
-    for (const GroundedCondition& gc : aConds)
-    {
-        if (bConds.find(gc) == bConds.end())
-        {
+// bool checkConditions(GroundedConditionSet aConds, 
+//                         GroundedConditionSet bConds)
+// {
+//     // cout << "checkConditions" << endl;
+//     for (const GroundedCondition& gc : aConds)
+//     {
+//         if (bConds.find(gc) == bConds.end())
+//         {
+//             return false;
+//         }
+//     }
+//     return true;
+// }
+
+bool checkConditions(const GroundedConditionSet& aConds, const GroundedConditionSet& bConds) {
+    for (const GroundedCondition& condition : aConds) {
+        // Check if the condition exists in bConds
+        if (bConds.find(condition) == bConds.end()) {
+            // If the condition is not found, check its truth value
+            if (condition.get_truth()) {
+                // If the condition is true and not found, return false
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool checkGoalConditions(const GroundedConditionSet& aConds, const GroundedConditionSet& goalConds) {
+    for (const GroundedCondition& condition : goalConds) {
+        if (aConds.find(condition) == aConds.end()) {
             return false;
         }
     }
     return true;
 }
+
+GroundedConditionSet applyAction(Node* node, const GroundedAction& ga)
+{
+    // cout << "applyAction" << endl;
+    GroundedConditionSet newConds = node->conditions;
+    for (const GroundedCondition& effect : ga.get_effects())
+    {
+        if (effect.get_truth())
+        {
+            newConds.insert(effect);
+        }
+        else
+        {
+            GroundedCondition tempEffect = effect;
+            // cout << "tempEffect: " << tempEffect << endl;
+            tempEffect.set_truth(true);
+            newConds.erase(tempEffect);
+        }
+    }
+    return newConds;
+}
+
 
 // https://chatgpt.com/c/67352087-2000-8012-8dd4-286cb56007e6
 stack<Node*> aStar(const GroundedConditionSet& initConds,
@@ -879,6 +942,10 @@ stack<Node*> aStar(const GroundedConditionSet& initConds,
                     const unordered_map<string, list<GroundedAction>>& actionSpace,
                     const Env* env)
 {
+    cout << "A* Search" << endl;
+
+    stack<Node*> path;
+
     // open list
     priority_queue<Node*, vector<Node*>, CompareNode> open;
     // closed list
@@ -894,85 +961,103 @@ stack<Node*> aStar(const GroundedConditionSet& initConds,
     
     open.push(start);
 
-    while (open.empty())
+    // cout << "Start Node: " << start << endl;
+    while (!open.empty())
     {
         Node* topPriorityNode = open.top();
         open.pop();
 
-        // if (checkConditions(topPriorityNode->conditions, goalConds))
-        // {
-        //     // goal reached, backtrace
-        //     stack<Node*> path;
-        //     while (topPriorityNode != nullptr)
-        //     {
-        //         path.push(topPriorityNode);
-        //         topPriorityNode = topPriorityNode->parent;
-        //     }
-        //     cout << "Explored Node Num: " << closed.size() << endl;
-        //     return path;
-        // }
+        cout << "topPriorityNode: " << topPriorityNode->toString() << endl;
 
-        // closed.push_back(topPriorityNode->conditions);
+        if (checkGoalConditions(topPriorityNode->conditions, goalConds))
+        {
+            // goal reached, backtrace
+            while (topPriorityNode != nullptr)
+            {
+                path.push(topPriorityNode);
+                topPriorityNode = topPriorityNode->parent;
+            }
+            cout << "Explored Node Num: " << closed.size() << endl;
+            return path;
+        }
 
-        // // get all possible actions
-        // for (auto& aPair : actionSpace)
-        // {
-        //     string actionName = aPair.first;
-        //     for (const GroundedAction& action : aPair.second)
-        //     {
-        //         GroundedCondition gc(actionName, action.get_arg_values());
+        closed.push_back(topPriorityNode->conditions);
 
-        //         if (checkConditions(gc, topPriorityNode->conditions))
-        //         {
-        //             Node* newNode = new Node(action.get_effects());
-        //             newNode->parent = topPriorityNode;
-        //             newNode->parentAction = new GroundedAction(action);
-        //             newNode->g = topPriorityNode->g + 1;
-        //             newNode->calHeuristic(env);
-        //             newNode->updatePriority();
+        // get all possible actions
+        for (auto& aPair : actionSpace)
+        {
+            string generalActionName = aPair.first;
+            for (const GroundedAction& ga : aPair.second)
+            {
+                if (checkConditions(ga.get_preconditions(), topPriorityNode->conditions))
+                {
+                    // cout << "Action: " << ga.toString() << endl;
+                    GroundedConditionSet newConditions = applyAction(topPriorityNode, ga);
 
-        //             if ()
-        //             {
-        //                 open.push(newNode);
-        //             }
-        //         }
-        //     }
-        // }
-
-
-
+                    // check if the new conditions are in the closed list
+                    bool inClosed = false;
+                    for (const GroundedConditionSet& gcSet : closed)
+                    {
+                        if (checkConditions(newConditions, gcSet))
+                        {
+                            inClosed = true;
+                            break;
+                        }
+                    }
+                    if (!inClosed) 
+                    {
+                        Node* newNode = new Node(newConditions);
+                        newNode->parent = topPriorityNode;
+                        newNode->parentAction = new GroundedAction(ga);
+                        newNode->g = topPriorityNode->g + 1;
+                        newNode->calHeuristic(env);
+                        newNode->updatePriority();
+                        open.push(newNode);
+                    }
+                    else
+                    {
+                        // cout << "In closed" << endl;
+                    }
+                }
+            }
+        }
 
     }
-    
+    return path;
 }
 
 void groundCondition(const ConditionSet& conditions,
+                        const list<string>& args,
                         const list<string>& params,
                         GroundedConditionSet& grounded_conds)
 {
-    // directly modify the grounded_conds
-    // for (const Condition& cond : conditions)
-    // {
-    //     string pred = cond.get_predicate();
-    //     list<string> args = cond.get_args();
-    //     bool truth = cond.get_truth();
+    // turn every conditions into grounded conditions
+    // turn the general action args to params
+    // args might exist symbol that is in the params, we only replace the ones that are not in the params
 
-    //     string grounded_pred = pred;
-    //     list<string> grounded_args;
-    //     for (const string& arg : args)
-    //     {
-    //         if (arg[0] == '?')
-    //         {
-    //             int index = stoi(arg.substr(1));
-    //             grounded_args.push_back(params[index]);
-    //         }
-    //         else
-    //         {
-    //             grounded_args.push_back(arg);
-    //         }
-    //     }
-    //     grounded_conds.insert(GroundedCondition(grounded_pred, grounded_args, truth));
-    // }
+    // directly modify the grounded_conds
+    unordered_map<string, string> argMap;
+    // sanity check, they should always be of the same size
+    // cout << "Args: " << args.size() << ", Params: " << params.size() << endl;
+    auto paramIter = params.begin();
+    for (auto argIter = args.begin(); argIter != args.end() && paramIter != params.end(); ++argIter, ++paramIter) {
+        argMap[*argIter] = *paramIter;
+    }
+
+    for (const Condition& cond : conditions)
+    {
+        list<string> groundedArgs;
+        for (const string& arg : cond.get_args())
+        {
+            if (argMap.count(arg) > 0) {
+                groundedArgs.push_back(argMap[arg]);
+            } else {
+                // If the condition argument is not in the map, keep its original value
+                groundedArgs.push_back(arg);
+            }
+        }
+        grounded_conds.insert(GroundedCondition(cond.get_predicate(), groundedArgs, cond.get_truth()));
+    }
 }
 
 // Helper function to generate all permutations of a combination
@@ -996,8 +1081,10 @@ unordered_map<string, list<GroundedAction>> generateActionSpace(const ActionSet&
     for (const Action& action : actions) {
         auto paramCount = action.get_args().size();
         // Skip if not enough symbols for parameters
-        if (paramCount > symbolList.size())
+        if (paramCount > symbolList.size()) {
+            cout << "Not enough symbols for parameters" << endl;
             continue;
+        }
 
         // Generate unique combinations of symbols
         vector<string> symbolVector(symbolList.begin(), symbolList.end());
@@ -1023,8 +1110,8 @@ unordered_map<string, list<GroundedAction>> generateActionSpace(const ActionSet&
         for (const auto& params : parameterCombinations) {
             GroundedConditionSet groundedPreconditions;
             GroundedConditionSet groundedEffects;
-            groundCondition(action.get_preconditions(), params, groundedPreconditions);
-            groundCondition(action.get_effects(), params, groundedEffects);
+            groundCondition(action.get_preconditions(), action.get_args(), params, groundedPreconditions);
+            groundCondition(action.get_effects(), action.get_args(), params, groundedEffects);
             GroundedAction groundedAction(action.get_name(), params, groundedPreconditions, groundedEffects);
             actionSpace[action.get_name()].push_back(groundedAction);
         }
@@ -1047,16 +1134,15 @@ list<GroundedAction> planner(Env* env)
     // Have a bunch of actions, now need to generate all possible combinations of actions with the symbols
     unordered_map<string, list<GroundedAction>> actionSpace = generateActionSpace(actions, symbols);
 
-    // for (auto& aPair : actionSpace) {
-    //     cout << "Action: " << aPair.first << endl;
-    //     for (const GroundedAction& ga : aPair.second) {
-    //         cout << ga << endl;
-    //     }
-    // }
+    for (auto& aPair : actionSpace) {
+        cout << "Action: " << aPair.first << endl;
+        for (const GroundedAction& ga : aPair.second) {
+            cout << ga << endl;
+        }
+    }
 
     // start
     GroundedConditionSet initialConditions = env->get_initial_conditions();
-
     cout << "Initial Conditions: " << endl;
     for (const GroundedCondition& gc : initialConditions)
     {
@@ -1065,7 +1151,6 @@ list<GroundedAction> planner(Env* env)
 
     // goal
     GroundedConditionSet goalConditions = env->get_goal_conditions();
-
     cout << "Goal Conditions: " << endl;
     for (const GroundedCondition& gc : goalConditions)
     {
@@ -1073,16 +1158,22 @@ list<GroundedAction> planner(Env* env)
     }
 
     // top: start, bottom: goal
-    // stack<Node*> path = aStar(initialConditions, goalConditions, actionSpace, env);
-    // while (!path.empty())
-    // {
-    //     Node* topPriorityNode = path.top();
-    //     path.pop();
-    //     if (topPriorityNode->parentAction != nullptr)
-    //     {
-    //         plan.push_back(*(topPriorityNode->parentAction));
-    //     }
-    // }
+    stack<Node*> path = aStar(initialConditions, goalConditions, actionSpace, env);
+    if (path.empty())
+    {
+        cout << "No path found! Return Empth Plan" << endl;
+        return plan;
+    }
+
+    while (!path.empty())
+    {
+        Node* cur = path.top();
+        path.pop();
+        if (cur->parentAction != nullptr)
+        {
+            plan.push_back(*(cur->parentAction));
+        }
+    }
 
     // Blocks World example (TODO: CHANGE THIS)
     // cout << endl << "CREATING DEFAULT PLAN" << endl;
