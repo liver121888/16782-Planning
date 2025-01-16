@@ -1,0 +1,12 @@
+Symbols: Robot, Femur, Home, F_predrill
+Initial conditions: At(Robot, Home), !Drilled(Femur), Isrobot(Robot), IsPose(F_predrill), IsPose(Home)
+Goal conditions: Drilled(Femur), At(Robot, Home)
+
+Actions:
+    Move(robot, from, to)
+    Preconditions: At(robot, from), Isrobot(robot), IsPose(from), IsPose(to)
+    Effects: At(robot, to), !At(robot, from)
+    
+    Drill(robot, bone)
+    Preconditions: At(robot, F_predrill), !Drilled(bone), Isrobot(robot), IsPose(F_predrill)
+    Effects: Drilled(bone), At(robot, F_predrill)

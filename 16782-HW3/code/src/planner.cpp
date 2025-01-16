@@ -1,6 +1,5 @@
 #include <iostream>
 #include <fstream>
-// #include <boost/functional/hash.hpp>
 #include <regex>
 #include <unordered_set>
 #include <set>
@@ -841,6 +840,7 @@ struct Node
 
     void calHeuristic(const Env* env)
     {
+        // this->h = 0;
         int result = 0;
         for (const GroundedCondition& gc : env->get_goal_conditions())
         {
@@ -876,20 +876,6 @@ struct CompareNode
         return lhs->f > rhs->f;
     }
 };
-
-// bool checkConditions(GroundedConditionSet aConds, 
-//                         GroundedConditionSet bConds)
-// {
-//     // cout << "checkConditions" << endl;
-//     for (const GroundedCondition& gc : aConds)
-//     {
-//         if (bConds.find(gc) == bConds.end())
-//         {
-//             return false;
-//         }
-//     }
-//     return true;
-// }
 
 bool checkConditions(const GroundedConditionSet& aConds, const GroundedConditionSet& bConds) {
     for (const GroundedCondition& condition : aConds) {
@@ -936,7 +922,6 @@ GroundedConditionSet applyAction(Node* node, const GroundedAction& ga)
 }
 
 
-// https://chatgpt.com/c/67352087-2000-8012-8dd4-286cb56007e6
 stack<Node*> aStar(const GroundedConditionSet& initConds,
                     const GroundedConditionSet& goalConds,
                     const unordered_map<string, list<GroundedAction>>& actionSpace,
@@ -967,7 +952,7 @@ stack<Node*> aStar(const GroundedConditionSet& initConds,
         Node* topPriorityNode = open.top();
         open.pop();
 
-        cout << "topPriorityNode: " << topPriorityNode->toString() << endl;
+        // cout << "topPriorityNode: " << topPriorityNode->toString() << endl;
 
         if (checkGoalConditions(topPriorityNode->conditions, goalConds))
         {
@@ -1082,6 +1067,7 @@ unordered_map<string, list<GroundedAction>> generateActionSpace(const ActionSet&
         auto paramCount = action.get_args().size();
         // Skip if not enough symbols for parameters
         if (paramCount > symbolList.size()) {
+            // should not happen
             cout << "Not enough symbols for parameters" << endl;
             continue;
         }
@@ -1134,28 +1120,28 @@ list<GroundedAction> planner(Env* env)
     // Have a bunch of actions, now need to generate all possible combinations of actions with the symbols
     unordered_map<string, list<GroundedAction>> actionSpace = generateActionSpace(actions, symbols);
 
-    for (auto& aPair : actionSpace) {
-        cout << "Action: " << aPair.first << endl;
-        for (const GroundedAction& ga : aPair.second) {
-            cout << ga << endl;
-        }
-    }
+    // for (auto& aPair : actionSpace) {
+    //     cout << "Action: " << aPair.first << endl;
+    //     for (const GroundedAction& ga : aPair.second) {
+    //         cout << ga << endl;
+    //     }
+    // }
 
     // start
     GroundedConditionSet initialConditions = env->get_initial_conditions();
-    cout << "Initial Conditions: " << endl;
-    for (const GroundedCondition& gc : initialConditions)
-    {
-        cout << gc << endl;
-    }
+    // cout << "Initial Conditions: " << endl;
+    // for (const GroundedCondition& gc : initialConditions)
+    // {
+    //     cout << gc << endl;
+    // }
 
     // goal
     GroundedConditionSet goalConditions = env->get_goal_conditions();
-    cout << "Goal Conditions: " << endl;
-    for (const GroundedCondition& gc : goalConditions)
-    {
-        cout << gc << endl;
-    }
+    // cout << "Goal Conditions: " << endl;
+    // for (const GroundedCondition& gc : goalConditions)
+    // {
+    //     cout << gc << endl;
+    // }
 
     // top: start, bottom: goal
     stack<Node*> path = aStar(initialConditions, goalConditions, actionSpace, env);
